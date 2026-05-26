@@ -1,4 +1,4 @@
-# Slip Splitter
+# Clip Splitter
 
 A simple macOS app for splitting uploaded video slips at jump cuts. It writes:
 
