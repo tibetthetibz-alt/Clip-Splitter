@@ -2,30 +2,34 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="SlipSplitter"
-BUNDLE_ID="com.codex.SlipSplitter-v2"
+EXECUTABLE_NAME="ClipSplitter"
+DISPLAY_NAME="Clip Splitter"
+BUNDLE_ID="com.codex.ClipSplitter"
 MIN_SYSTEM_VERSION="14.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
-APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
+APP_BUNDLE="$DIST_DIR/$DISPLAY_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
-APP_BINARY="$APP_MACOS/$APP_NAME"
+APP_BINARY="$APP_MACOS/$EXECUTABLE_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+pkill -x "$EXECUTABLE_NAME" >/dev/null 2>&1 || true
+pkill -x "SlipSplitter" >/dev/null 2>&1 || true
 
 swift build -c release
-BUILD_BINARY="$(swift build -c release --show-bin-path)/$APP_NAME"
+BUILD_BINARY="$(swift build -c release --show-bin-path)/$EXECUTABLE_NAME"
 
+# Remove legacy bundles so Finder / Run does not open the old app name.
+rm -rf "$DIST_DIR/SlipSplitter.app" "$DIST_DIR/ClipSplitter.app"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 
-RESOURCE_BUNDLE="$(dirname "$BUILD_BINARY")/SlipSplitter_SlipSplitter.bundle"
+RESOURCE_BUNDLE="$(dirname "$BUILD_BINARY")/ClipSplitter_ClipSplitter.bundle"
 if [ -d "$RESOURCE_BUNDLE" ]; then
   cp -R "$RESOURCE_BUNDLE" "$APP_RESOURCES/"
   if [ -f "$RESOURCE_BUNDLE/AppIcon.icns" ]; then
@@ -39,11 +43,13 @@ cat >"$INFO_PLIST" <<PLIST
 <plist version="1.0">
 <dict>
   <key>CFBundleExecutable</key>
-  <string>$APP_NAME</string>
+  <string>$EXECUTABLE_NAME</string>
   <key>CFBundleIdentifier</key>
   <string>$BUNDLE_ID</string>
   <key>CFBundleName</key>
-  <string>$APP_NAME</string>
+  <string>$DISPLAY_NAME</string>
+  <key>CFBundleDisplayName</key>
+  <string>$DISPLAY_NAME</string>
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundlePackageType</key>
@@ -69,7 +75,7 @@ case "$MODE" in
     ;;
   --logs|logs)
     open_app
-    /usr/bin/log stream --info --style compact --predicate "process == \"$APP_NAME\""
+    /usr/bin/log stream --info --style compact --predicate "process == \"$EXECUTABLE_NAME\""
     ;;
   --telemetry|telemetry)
     open_app
@@ -78,7 +84,7 @@ case "$MODE" in
   --verify|verify)
     open_app
     sleep 1
-    pgrep -x "$APP_NAME" >/dev/null
+    pgrep -x "$EXECUTABLE_NAME" >/dev/null
     ;;
   *)
     echo "usage: $0 [run|--debug|--logs|--telemetry|--verify]" >&2

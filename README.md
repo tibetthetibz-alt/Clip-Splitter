@@ -1,6 +1,6 @@
 # Clip Splitter
 
-A simple macOS app for splitting uploaded video slips at jump cuts. It writes:
+A simple macOS app for splitting uploaded videos at jump cuts. It writes:
 
 - `clips/`: video-only clips with their audio stripped
 - `audio/`: one full-length `.m4a` audio export for the source video

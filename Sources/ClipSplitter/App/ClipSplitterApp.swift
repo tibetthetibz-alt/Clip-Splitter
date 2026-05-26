@@ -1,12 +1,12 @@
 import SwiftUI
 
 @main
-struct SlipSplitterApp: App {
+struct ClipSplitterApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var store = ProcessingStore()
 
     var body: some Scene {
-        WindowGroup("Slip Splitter", id: "main") {
+        WindowGroup("Clip Splitter", id: "main") {
             ContentView(store: store)
                 .frame(minWidth: 760, minHeight: 520)
         }
@@ -30,5 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+
+        let displayName =
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+            ?? "Clip Splitter"
+        NSApp.mainMenu?.items.first?.title = displayName
     }
 }

@@ -12,7 +12,7 @@ struct SettingsView: View {
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 VStack(alignment: .leading) {
-                    Text("Slip Splitter Settings")
+                    Text("Clip Splitter Settings")
                         .font(.title3.weight(.semibold))
                     Text("Detector tuning and processing diagnostics")
                         .foregroundStyle(.secondary)

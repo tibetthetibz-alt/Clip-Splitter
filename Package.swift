@@ -3,20 +3,24 @@
 import PackageDescription
 
 let package = Package(
-    name: "SlipSplitter",
+    name: "ClipSplitter",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "SlipSplitter", targets: ["SlipSplitter"])
+        .executable(name: "ClipSplitter", targets: ["ClipSplitter"])
     ],
     targets: [
         .executableTarget(
-            name: "SlipSplitter",
-            path: "Sources/SlipSplitter",
+            name: "ClipSplitter",
+            path: "Sources/ClipSplitter",
             resources: [
                 .process("Resources")
             ],
+            infoPlist: .extendingDefault(with: [
+                "CFBundleDisplayName": "Clip Splitter",
+                "CFBundleName": "Clip Splitter",
+            ]),
             swiftSettings: [
                 .unsafeFlags(["-gnone"])
             ]

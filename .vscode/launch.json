@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:New project}",
+            "name": "Debug Clip Splitter",
+            "target": "ClipSplitter",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug ClipSplitter"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:New project}",
+            "name": "Release Clip Splitter",
+            "target": "ClipSplitter",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release ClipSplitter"
+        }
+    ]
+}

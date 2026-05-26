@@ -39,7 +39,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationTitle("Slip Splitter")
+        .navigationTitle("Clip Splitter")
     }
 }
 
