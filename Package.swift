@@ -14,6 +14,9 @@ let package = Package(
         .executableTarget(
             name: "SlipSplitter",
             path: "Sources/SlipSplitter",
+            resources: [
+                .process("Resources")
+            ],
             swiftSettings: [
                 .unsafeFlags(["-gnone"])
             ]

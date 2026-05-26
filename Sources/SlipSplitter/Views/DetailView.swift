@@ -1,3 +1,4 @@
+import AVKit
 import SwiftUI
 
 struct DetailView: View {
@@ -9,48 +10,42 @@ struct DetailView: View {
 
             Divider()
 
-            Form {
-                Section("Cut Detection") {
-                    Slider(value: $store.settings.sceneThreshold, in: 0.12...0.7) {
-                        Text("Sensitivity")
-                    } minimumValueLabel: {
-                        Text("More")
-                    } maximumValueLabel: {
-                        Text("Less")
-                    }
+            HSplitView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Output")
+                        .font(.headline)
 
-                    LabeledContent("Threshold") {
-                        Text(store.settings.sceneThreshold, format: .number.precision(.fractionLength(2)))
-                            .monospacedDigit()
-                    }
-
-                    Stepper(value: $store.settings.minimumClipSeconds, in: 0.2...10, step: 0.1) {
-                        LabeledContent("Minimum clip length") {
-                            Text("\(store.settings.minimumClipSeconds, specifier: "%.1f")s")
-                                .monospacedDigit()
+                    if let job = store.selectedJob, !job.outputs.isEmpty {
+                        List(job.outputs, selection: $store.selectedOutputID) { output in
+                            OutputRow(output: output)
+                                .tag(output.id)
+                                .contextMenu {
+                                    Button("Reveal in Finder") {
+                                        NSWorkspace.shared.activateFileViewerSelecting([output.url])
+                                    }
+                                }
                         }
-                    }
-                }
-
-                Section("Activity") {
-                    if store.events.isEmpty {
-                        Text("Waiting for a folder.")
-                            .foregroundStyle(.secondary)
                     } else {
-                        ForEach(store.events) { event in
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(event.message)
-                                Text(event.date, style: .time)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.vertical, 2)
-                        }
+                        ContentUnavailableView("No Clips Yet", systemImage: "film.stack", description: Text("Process the selected video to create clips and audio files."))
                     }
                 }
+                .padding()
+                .frame(minWidth: 260, idealWidth: 320)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Preview")
+                        .font(.headline)
+
+                    if let output = store.selectedOutput, output.kind == .video {
+                        VideoPlayer(player: AVPlayer(url: output.url))
+                            .aspectRatio(16 / 9, contentMode: .fit)
+                    } else {
+                        ContentUnavailableView("Pick a Clip", systemImage: "play.rectangle", description: Text("Video clips appear here after processing."))
+                    }
+                }
+                .padding()
+                .frame(minWidth: 360)
             }
-            .formStyle(.grouped)
-            .scrollContentBackground(.hidden)
         }
     }
 }
@@ -61,6 +56,12 @@ private struct HeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center) {
+                Image("logo", bundle: .module)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(store.status.title)
                         .font(.title2.weight(.semibold))
@@ -85,6 +86,14 @@ private struct HeaderView: View {
             HStack(spacing: 14) {
                 StatView(value: "\(store.jobs.count)", title: "videos")
                 StatView(value: "\(store.jobs.reduce(0) { $0 + $1.clipCount })", title: "clips")
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(store.progressMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    ProgressView(value: store.progress)
+                        .frame(width: 220)
+                }
             }
         }
         .padding(24)
@@ -100,6 +109,25 @@ private struct HeaderView: View {
             "Clips and audio were written to the output folder."
         case .idle:
             "Choose input and output folders, then process your videos."
+        }
+    }
+}
+
+private struct OutputRow: View {
+    let output: OutputArtifact
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: output.kind.systemImage)
+                .foregroundStyle(.secondary)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(output.fileName)
+                    .lineLimit(1)
+                Text("\(output.kind.rawValue) \(output.clipIndex)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }

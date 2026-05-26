@@ -2,6 +2,8 @@ import Foundation
 
 struct ProcessingResult {
     let clipCount: Int
+    let outputs: [OutputArtifact]
+    let diagnostics: [ProcessingEvent]
 }
 
 enum ClipProcessorError: LocalizedError {
@@ -31,7 +33,7 @@ final class ClipProcessor {
         sourceURL: URL,
         outputRoot: URL,
         settings: DetectionSettings,
-        onEvent: @escaping @Sendable (String) -> Void
+        onProgress: @escaping @Sendable (ProcessingProgress) -> Void
     ) async throws -> ProcessingResult {
         let ffmpeg = try await findExecutable("ffmpeg")
         let ffprobe = try await findExecutable("ffprobe")
@@ -47,17 +49,32 @@ final class ClipProcessor {
             throw ClipProcessorError.noWritableOutput
         }
 
-        onEvent("Detecting cuts in \(sourceURL.lastPathComponent).")
+        var diagnostics: [ProcessingEvent] = []
+        diagnostics.append(ProcessingEvent(level: .info, message: "Using FFmpeg scene detector for \(sourceURL.lastPathComponent)."))
+        onProgress(ProcessingProgress(stage: "Reading duration", fraction: 0.03))
         let duration = try await videoDuration(sourceURL: sourceURL, ffprobe: ffprobe)
-        let cutPoints = try await detectCutPoints(sourceURL: sourceURL, ffmpeg: ffmpeg, settings: settings)
+        onProgress(ProcessingProgress(stage: "Detecting cuts", fraction: 0.08))
+        let detection = try await detectCutPoints(
+            sourceURL: sourceURL,
+            ffmpeg: ffmpeg,
+            duration: duration,
+            settings: settings
+        ) { progress in
+            onProgress(ProcessingProgress(stage: "Detecting cuts", fraction: 0.08 + progress * 0.52))
+        }
+        let cutPoints = detection.cutPoints
         let ranges = makeRanges(cutPoints: cutPoints, duration: duration, minimumLength: settings.minimumClipSeconds)
 
-        onEvent("Writing \(ranges.count) clip\(ranges.count == 1 ? "" : "s") for \(sourceURL.lastPathComponent).")
+        diagnostics.append(ProcessingEvent(level: .info, message: "Detected \(cutPoints.count) cut point\(cutPoints.count == 1 ? "" : "s") and will write \(ranges.count) clip\(ranges.count == 1 ? "" : "s")."))
+        diagnostics += detection.diagnostics
+        var outputs: [OutputArtifact] = []
 
         for (index, range) in ranges.enumerated() {
             let number = String(format: "%03d", index + 1)
             let clipURL = clipsFolder.appendingPathComponent("\(baseName)_clip_\(number).mp4")
             let audioURL = audioFolder.appendingPathComponent("\(baseName)_clip_\(number)_audio.m4a")
+            let baseProgress = Double(index) / Double(max(ranges.count, 1))
+            onProgress(ProcessingProgress(stage: "Writing clip \(index + 1) of \(ranges.count)", fraction: 0.60 + baseProgress * 0.38))
 
             try await run(
                 executable: ffmpeg,
@@ -86,9 +103,12 @@ final class ClipProcessor {
                     audioURL.path(percentEncoded: false)
                 ]
             )
+            outputs.append(OutputArtifact(url: clipURL, kind: .video, clipIndex: index + 1))
+            outputs.append(OutputArtifact(url: audioURL, kind: .audio, clipIndex: index + 1))
         }
 
-        return ProcessingResult(clipCount: ranges.count)
+        onProgress(ProcessingProgress(stage: "Finished", fraction: 1))
+        return ProcessingResult(clipCount: ranges.count, outputs: outputs, diagnostics: diagnostics)
     }
 
     private func findExecutable(_ name: String) async throws -> String {
@@ -129,31 +149,47 @@ final class ClipProcessor {
         return duration
     }
 
-    private func detectCutPoints(sourceURL: URL, ffmpeg: String, settings: DetectionSettings) async throws -> [Double] {
-        let filter = "select=gt(scene\\,\(settings.sceneThreshold)),showinfo"
-        let result = try await runCapturing(
+    private func detectCutPoints(
+        sourceURL: URL,
+        ffmpeg: String,
+        duration: Double,
+        settings: DetectionSettings,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> (cutPoints: [Double], diagnostics: [ProcessingEvent]) {
+        let filter = "scdet=threshold=\(settings.sceneThreshold),metadata=mode=print"
+        let result = try await runStreaming(
             executable: ffmpeg,
             arguments: [
                 "-hide_banner",
                 "-i", sourceURL.path(percentEncoded: false),
                 "-vf", filter,
                 "-an",
+                "-progress", "pipe:1",
+                "-nostats",
                 "-f", "null",
                 "-"
             ],
-            allowNonZero: true
+            duration: duration,
+            onProgress: onProgress
         )
 
         let text = result.output + "\n" + result.error
-        let pattern = #"pts_time:([0-9]+(?:\.[0-9]+)?)"#
-        let regex = try NSRegularExpression(pattern: pattern)
-        let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        let values = regex.matches(in: text, range: range).compactMap { match -> Double? in
-            guard let valueRange = Range(match.range(at: 1), in: text) else { return nil }
-            return Double(text[valueRange])
+        let scoreSamples = parseSceneScores(text)
+        let thresholdCuts = parseNumbers(text, pattern: #"lavfi\.scd\.time=([0-9]+(?:\.[0-9]+)?)"#)
+        let adaptiveCuts = adaptiveCutPoints(from: scoreSamples, settings: settings)
+        let merged = mergeCutPoints(thresholdCuts + adaptiveCuts, minimumGap: settings.minimumClipSeconds)
+        let diagnostics = [
+            ProcessingEvent(level: .info, message: "Detector: scdet threshold \(settings.sceneThreshold), adaptive ratio \(settings.adaptiveMultiplier)."),
+            ProcessingEvent(level: .info, message: "Read \(scoreSamples.count) scene score sample\(scoreSamples.count == 1 ? "" : "s")."),
+            ProcessingEvent(level: .info, message: "Threshold cuts: \(thresholdCuts.count), adaptive additions: \(adaptiveCuts.count).")
+        ]
+
+        if !merged.isEmpty || !scoreSamples.isEmpty {
+            return (merged, diagnostics)
         }
 
-        return Array(Set(values)).sorted()
+        let fallback = try await detectCutPointsWithSelect(sourceURL: sourceURL, ffmpeg: ffmpeg, settings: settings)
+        return (fallback, diagnostics + [ProcessingEvent(level: .warning, message: "scdet returned no metadata, used select(scene) fallback.")])
     }
 
     private func makeRanges(cutPoints: [Double], duration: Double, minimumLength: Double) -> [(start: Double, end: Double)] {
@@ -221,7 +257,134 @@ final class ClipProcessor {
         }
     }
 
+    private func runStreaming(
+        executable: String,
+        arguments: [String],
+        duration: Double,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> (status: Int32, output: String, error: String) {
+        try await withCheckedThrowingContinuation { continuation in
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: executable)
+            process.arguments = arguments
+
+            let outputPipe = Pipe()
+            let errorPipe = Pipe()
+            process.standardOutput = outputPipe
+            process.standardError = errorPipe
+
+            let outputData = LockedData()
+            let errorData = LockedData()
+            let outputHandle = outputPipe.fileHandleForReading
+            let errorHandle = errorPipe.fileHandleForReading
+
+            outputHandle.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                outputData.append(data)
+                if let chunk = String(data: data, encoding: .utf8) {
+                    for line in chunk.split(separator: "\n") where line.hasPrefix("out_time_ms=") {
+                        let raw = line.replacingOccurrences(of: "out_time_ms=", with: "")
+                        if let microseconds = Double(raw) {
+                            onProgress(min(max((microseconds / 1_000_000) / duration, 0), 1))
+                        }
+                    }
+                }
+            }
+
+            errorHandle.readabilityHandler = { handle in
+                let data = handle.availableData
+                guard !data.isEmpty else { return }
+                errorData.append(data)
+            }
+
+            process.terminationHandler = { process in
+                outputHandle.readabilityHandler = nil
+                errorHandle.readabilityHandler = nil
+                let output = String(data: outputData.data, encoding: .utf8) ?? ""
+                let error = String(data: errorData.data, encoding: .utf8) ?? ""
+                if process.terminationStatus == 0 {
+                    continuation.resume(returning: (process.terminationStatus, output, error))
+                } else {
+                    continuation.resume(throwing: ClipProcessorError.commandFailed(error.isEmpty ? output : error))
+                }
+            }
+
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    private func detectCutPointsWithSelect(sourceURL: URL, ffmpeg: String, settings: DetectionSettings) async throws -> [Double] {
+        let selectThreshold = max(settings.minimumSceneScore / 100, 0.08)
+        let filter = "select=gt(scene\\,\(selectThreshold)),showinfo"
+        let result = try await runCapturing(
+            executable: ffmpeg,
+            arguments: ["-hide_banner", "-i", sourceURL.path(percentEncoded: false), "-vf", filter, "-an", "-f", "null", "-"],
+            allowNonZero: true
+        )
+        return mergeCutPoints(parseNumbers(result.output + "\n" + result.error, pattern: #"pts_time:([0-9]+(?:\.[0-9]+)?)"#), minimumGap: settings.minimumClipSeconds)
+    }
+
+    private func parseSceneScores(_ text: String) -> [(time: Double, score: Double)] {
+        let times = parseNumbers(text, pattern: #"pts_time:([0-9]+(?:\.[0-9]+)?)"#)
+        let scores = parseNumbers(text, pattern: #"lavfi\.scd\.score=([0-9]+(?:\.[0-9]+)?)"#)
+        return zip(times, scores).map { ($0, $1) }
+    }
+
+    private func adaptiveCutPoints(from samples: [(time: Double, score: Double)], settings: DetectionSettings) -> [Double] {
+        guard samples.count > 4 else { return [] }
+        let window = 2
+        return samples.indices.compactMap { index in
+            let score = samples[index].score
+            guard score >= settings.minimumSceneScore else { return nil }
+            let lower = max(0, index - window)
+            let upper = min(samples.count - 1, index + window)
+            let neighbors = (lower...upper).filter { $0 != index }.map { samples[$0].score }
+            let average = max(neighbors.reduce(0, +) / Double(max(neighbors.count, 1)), 0.1)
+            return score / average >= settings.adaptiveMultiplier ? samples[index].time : nil
+        }
+    }
+
+    private func parseNumbers(_ text: String, pattern: String) -> [Double] {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.matches(in: text, range: range).compactMap { match -> Double? in
+            guard let valueRange = Range(match.range(at: 1), in: text) else { return nil }
+            return Double(text[valueRange])
+        }
+    }
+
+    private func mergeCutPoints(_ points: [Double], minimumGap: Double) -> [Double] {
+        Array(Set(points)).sorted().reduce(into: [Double]()) { result, point in
+            if let last = result.last, point - last < minimumGap {
+                return
+            }
+            result.append(point)
+        }
+    }
+
     private func formatSeconds(_ seconds: Double) -> String {
         String(format: "%.3f", seconds)
+    }
+}
+
+private final class LockedData: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage = Data()
+
+    var data: Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func append(_ data: Data) {
+        lock.lock()
+        storage.append(data)
+        lock.unlock()
     }
 }

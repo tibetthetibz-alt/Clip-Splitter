@@ -10,11 +10,26 @@ final class ProcessingStore {
     var events: [ProcessingEvent] = []
     var status: ProcessingStatus = .idle
     var settings = DetectionSettings()
+    var selectedJobID: VideoJob.ID?
+    var selectedOutputID: OutputArtifact.ID?
+    var progress: Double = 0
+    var progressMessage = "Ready"
 
     private let processor = ClipProcessor()
 
     var canProcess: Bool {
-        inputFolder != nil && outputFolder != nil && status != .running
+        inputFolder != nil && outputFolder != nil && selectedJob != nil && status != .running
+    }
+
+    var selectedJob: VideoJob? {
+        guard let selectedJobID else { return jobs.first }
+        return jobs.first { $0.id == selectedJobID }
+    }
+
+    var selectedOutput: OutputArtifact? {
+        let outputs = selectedJob?.outputs ?? []
+        guard let selectedOutputID else { return outputs.first { $0.kind == .video } }
+        return outputs.first { $0.id == selectedOutputID }
     }
 
     func chooseInputFolder() {
@@ -46,47 +61,73 @@ final class ProcessingStore {
                 .filter { VideoFileSupport.isSupported($0) }
                 .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
                 .map { VideoJob(sourceURL: $0, status: "Waiting") }
+            selectedJobID = jobs.first?.id
+            selectedOutputID = nil
             addEvent("Found \(jobs.count) video file\(jobs.count == 1 ? "" : "s").")
         } catch {
             status = .failed(error.localizedDescription)
-            addEvent("Could not read input folder: \(error.localizedDescription)")
+            addEvent("Could not read input folder: \(error.localizedDescription)", level: .error)
         }
     }
 
     @MainActor
     func process() async {
-        guard let outputFolder, !jobs.isEmpty else { return }
+        guard let outputFolder, let selectedJob, let index = jobs.firstIndex(where: { $0.id == selectedJob.id }) else { return }
 
         status = .running
-        addEvent("Starting split.")
+        progress = 0
+        progressMessage = "Starting"
+        jobs[index].status = "Detecting cuts"
+        jobs[index].progress = 0
+        jobs[index].outputs = []
+        selectedOutputID = nil
+        let sourceURL = jobs[index].sourceURL
+        addEvent("Starting \(sourceURL.lastPathComponent).")
 
-        for index in jobs.indices {
-            jobs[index].status = "Detecting cuts"
-            let sourceURL = jobs[index].sourceURL
-
-            do {
-                let result = try await processor.process(
-                    sourceURL: sourceURL,
-                    outputRoot: outputFolder,
-                    settings: settings
-                ) { [weak self] message in
-                    Task { @MainActor in self?.addEvent(message) }
+        do {
+            let result = try await processor.process(
+                sourceURL: sourceURL,
+                outputRoot: outputFolder,
+                settings: settings
+            ) { [weak self] update in
+                Task { @MainActor in
+                    self?.progress = update.fraction
+                    self?.progressMessage = update.stage
+                    if let jobIndex = self?.jobs.firstIndex(where: { $0.id == selectedJob.id }) {
+                        self?.jobs[jobIndex].progress = update.fraction
+                        self?.jobs[jobIndex].status = update.stage
+                    }
                 }
-                jobs[index].clipCount = result.clipCount
-                jobs[index].status = "Done"
-            } catch {
-                jobs[index].status = "Failed"
-                status = .failed(error.localizedDescription)
-                addEvent("\(sourceURL.lastPathComponent): \(error.localizedDescription)")
-                return
             }
+            jobs[index].clipCount = result.clipCount
+            jobs[index].outputs = result.outputs
+            jobs[index].status = "Done"
+            jobs[index].progress = 1
+            events.insert(contentsOf: result.diagnostics.reversed(), at: 0)
+            selectedOutputID = result.outputs.first { $0.kind == .video }?.id
+        } catch {
+            jobs[index].status = "Failed"
+            status = .failed(error.localizedDescription)
+            progressMessage = "Failed"
+            addEvent("\(sourceURL.lastPathComponent): \(error.localizedDescription)", level: .error)
+            return
         }
 
         status = .finished
-        addEvent("All done.")
+        progressMessage = "Finished"
+        addEvent("Finished \(sourceURL.lastPathComponent).")
     }
 
-    func addEvent(_ message: String) {
-        events.insert(ProcessingEvent(message: message), at: 0)
+    func selectJob(_ job: VideoJob) {
+        selectedJobID = job.id
+        selectedOutputID = job.outputs.first { $0.kind == .video }?.id
+    }
+
+    func selectOutput(_ output: OutputArtifact) {
+        selectedOutputID = output.id
+    }
+
+    func addEvent(_ message: String, level: LogLevel = .info) {
+        events.insert(ProcessingEvent(level: level, message: message), at: 0)
     }
 }

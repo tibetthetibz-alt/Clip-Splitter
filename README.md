@@ -22,3 +22,9 @@ The app checks common Homebrew paths and `PATH`; if `ffmpeg` or `ffprobe` is mis
 ```
 
 In Codex, use the Run action. Pick an input folder, pick an output folder, then press Process.
+
+## Cut Detection
+
+Slip Splitter uses FFmpeg's `scdet` filter as the primary detector. It reads scene-change scores and threshold timestamps, then adds adaptive cut candidates when a frame's scene score spikes above its local rolling neighborhood. This catches obvious jump cuts that a single fixed threshold can miss while still filtering tiny repeated hits by the minimum clip length.
+
+Open Settings for detector tuning and diagnostics from the toolbar.

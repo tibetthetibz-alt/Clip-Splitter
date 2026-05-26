@@ -23,13 +23,17 @@ struct SidebarView: View {
                 .onTapGesture { store.chooseOutputFolder() }
             }
 
-            Section("Videos") {
+            Section("MP4 Files") {
                 if store.jobs.isEmpty {
                     Text("No supported videos")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(store.jobs) { job in
                         VideoJobRow(job: job)
+                            .tag(job.id)
+                            .listRowBackground(store.selectedJobID == job.id ? Color.accentColor.opacity(0.16) : nil)
+                            .contentShape(Rectangle())
+                            .onTapGesture { store.selectJob(job) }
                     }
                 }
             }
@@ -76,6 +80,10 @@ private struct VideoJobRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if job.progress > 0 && job.progress < 1 {
+                    ProgressView(value: job.progress)
+                        .controlSize(.small)
+                }
             }
         }
     }

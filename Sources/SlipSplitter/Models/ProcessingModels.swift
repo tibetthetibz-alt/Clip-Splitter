@@ -23,7 +23,45 @@ enum ProcessingStatus: Equatable {
 struct ProcessingEvent: Identifiable, Hashable {
     let id = UUID()
     let date = Date()
+    let level: LogLevel
     let message: String
+}
+
+enum LogLevel: String, CaseIterable, Hashable {
+    case info = "Info"
+    case warning = "Warning"
+    case error = "Error"
+
+    var systemImage: String {
+        switch self {
+        case .info: "info.circle"
+        case .warning: "exclamationmark.triangle"
+        case .error: "xmark.octagon"
+        }
+    }
+}
+
+struct OutputArtifact: Identifiable, Hashable {
+    let id = UUID()
+    let url: URL
+    let kind: ArtifactKind
+    let clipIndex: Int
+
+    var fileName: String {
+        url.lastPathComponent
+    }
+}
+
+enum ArtifactKind: String, Hashable {
+    case video = "Clip"
+    case audio = "Audio"
+
+    var systemImage: String {
+        switch self {
+        case .video: "film"
+        case .audio: "waveform"
+        }
+    }
 }
 
 struct VideoJob: Identifiable, Hashable {
@@ -31,6 +69,8 @@ struct VideoJob: Identifiable, Hashable {
     let sourceURL: URL
     var status: String
     var clipCount: Int = 0
+    var progress: Double = 0
+    var outputs: [OutputArtifact] = []
 
     var fileName: String {
         sourceURL.lastPathComponent
@@ -38,6 +78,13 @@ struct VideoJob: Identifiable, Hashable {
 }
 
 struct DetectionSettings: Equatable {
-    var sceneThreshold = 0.32
+    var sceneThreshold = 10.0
     var minimumClipSeconds = 0.7
+    var adaptiveMultiplier = 2.6
+    var minimumSceneScore = 6.0
+}
+
+struct ProcessingProgress: Sendable {
+    let stage: String
+    let fraction: Double
 }

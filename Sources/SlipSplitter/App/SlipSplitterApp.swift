@@ -10,6 +10,10 @@ struct SlipSplitterApp: App {
             ContentView(store: store)
                 .frame(minWidth: 760, minHeight: 520)
         }
+        Settings {
+            SettingsView(store: store)
+                .frame(width: 620, height: 460)
+        }
         .commands {
             CommandGroup(after: .newItem) {
                 Button("Process Videos") {

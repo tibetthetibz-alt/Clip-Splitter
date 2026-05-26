@@ -30,6 +30,10 @@ struct ContentView: View {
                 }
                 .keyboardShortcut("r", modifiers: [.command])
                 .disabled(!store.canProcess)
+
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
             }
         }
     }
