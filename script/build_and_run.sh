@@ -3,7 +3,7 @@ set -euo pipefail
 
 MODE="${1:-run}"
 APP_NAME="SlipSplitter"
-BUNDLE_ID="com.codex.SlipSplitter"
+BUNDLE_ID="com.codex.SlipSplitter-v2"
 MIN_SYSTEM_VERSION="14.0"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
