@@ -17,10 +17,6 @@ let package = Package(
             resources: [
                 .process("Resources")
             ],
-            infoPlist: .extendingDefault(with: [
-                "CFBundleDisplayName": "Clip Splitter",
-                "CFBundleName": "Clip Splitter",
-            ]),
             swiftSettings: [
                 .unsafeFlags(["-gnone"])
             ]

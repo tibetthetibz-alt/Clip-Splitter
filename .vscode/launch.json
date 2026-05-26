@@ -19,6 +19,26 @@
             "target": "ClipSplitter",
             "configuration": "release",
             "preLaunchTask": "swift: Build Release ClipSplitter"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:New project}",
+            "name": "Debug ClipSplitter",
+            "target": "ClipSplitter",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug ClipSplitter"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:New project}",
+            "name": "Release ClipSplitter",
+            "target": "ClipSplitter",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release ClipSplitter"
         }
     ]
 }

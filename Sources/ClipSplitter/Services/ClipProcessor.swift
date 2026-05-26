@@ -15,7 +15,7 @@ enum ClipProcessorError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .ffmpegMissing:
-            "ffmpeg was not found. Install it with Homebrew: brew install ffmpeg"
+            "FFmpeg was not found. Download the latest Clip Splitter release (FFmpeg is included), or install ffmpeg with Homebrew."
         case .commandFailed(let details):
             details
         case .durationMissing:
@@ -115,19 +115,13 @@ final class ClipProcessor {
     }
 
     private func findExecutable(_ name: String) async throws -> String {
-        let candidates = [
-            "/opt/homebrew/bin/\(name)",
-            "/usr/local/bin/\(name)",
-            "/usr/bin/\(name)"
-        ]
-
-        if let match = candidates.first(where: { fileManager.isExecutableFile(atPath: $0) }) {
-            return match
+        if let bundled = ToolLocator.path(for: name, fileManager: fileManager) {
+            return bundled
         }
 
         let result = try await runCapturing(executable: "/usr/bin/env", arguments: ["which", name])
         let path = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !path.isEmpty {
+        if !path.isEmpty, fileManager.isExecutableFile(atPath: path) {
             return path
         }
 
