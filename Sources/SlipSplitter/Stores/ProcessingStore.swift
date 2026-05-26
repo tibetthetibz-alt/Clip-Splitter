@@ -27,8 +27,8 @@ final class ProcessingStore {
     }
 
     var selectedOutput: OutputArtifact? {
-        let outputs = selectedJob?.outputs ?? []
-        guard let selectedOutputID else { return outputs.first { $0.kind == .video } }
+        let outputs = selectedJob?.clipOutputs ?? []
+        guard let selectedOutputID else { return outputs.first }
         return outputs.first { $0.id == selectedOutputID }
     }
 
@@ -120,7 +120,7 @@ final class ProcessingStore {
 
     func selectJob(_ job: VideoJob) {
         selectedJobID = job.id
-        selectedOutputID = job.outputs.first { $0.kind == .video }?.id
+        selectedOutputID = job.clipOutputs.first?.id
     }
 
     func selectOutput(_ output: OutputArtifact) {

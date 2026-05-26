@@ -27,4 +27,6 @@ In Codex, use the Run action. Pick an input folder, pick an output folder, then 
 
 Slip Splitter uses FFmpeg's `scdet` filter as the primary detector. It reads scene-change scores and threshold timestamps, then adds adaptive cut candidates when a frame's scene score spikes above its local rolling neighborhood. This catches obvious jump cuts that a single fixed threshold can miss while still filtering tiny repeated hits by the minimum clip length.
 
+Clip export re-encodes the selected video ranges for frame-accurate cuts. This avoids the end-of-clip spillover that can happen with `-c copy`, which can only cut cleanly near keyframes. Each clip keeps its audio, and the `audio/` folder contains one full-length audio export for the source video.
+
 Open Settings for detector tuning and diagnostics from the toolbar.

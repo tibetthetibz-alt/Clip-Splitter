@@ -23,7 +23,7 @@ struct SidebarView: View {
                 .onTapGesture { store.chooseOutputFolder() }
             }
 
-            Section("MP4 Files") {
+            Section("Input Videos") {
                 if store.jobs.isEmpty {
                     Text("No supported videos")
                         .foregroundStyle(.secondary)
@@ -70,7 +70,7 @@ private struct VideoJobRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "film")
+            Image(systemName: "play.rectangle")
                 .foregroundStyle(.secondary)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 2) {
@@ -80,10 +80,6 @@ private struct VideoJobRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
-                if job.progress > 0 && job.progress < 1 {
-                    ProgressView(value: job.progress)
-                        .controlSize(.small)
-                }
             }
         }
     }

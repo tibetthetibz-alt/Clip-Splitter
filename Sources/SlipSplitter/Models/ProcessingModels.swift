@@ -54,7 +54,7 @@ struct OutputArtifact: Identifiable, Hashable {
 
 enum ArtifactKind: String, Hashable {
     case video = "Clip"
-    case audio = "Audio"
+    case audio = "Full Audio"
 
     var systemImage: String {
         switch self {
@@ -74,6 +74,14 @@ struct VideoJob: Identifiable, Hashable {
 
     var fileName: String {
         sourceURL.lastPathComponent
+    }
+
+    var clipOutputs: [OutputArtifact] {
+        outputs.filter { $0.kind == .video }
+    }
+
+    var audioOutput: OutputArtifact? {
+        outputs.first { $0.kind == .audio }
     }
 }
 

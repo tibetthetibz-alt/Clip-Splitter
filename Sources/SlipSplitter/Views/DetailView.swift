@@ -12,18 +12,28 @@ struct DetailView: View {
 
             HSplitView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Output")
-                        .font(.headline)
+                    SourcePanel(store: store)
 
-                    if let job = store.selectedJob, !job.outputs.isEmpty {
-                        List(job.outputs, selection: $store.selectedOutputID) { output in
+                    Divider()
+
+                    HStack {
+                        Text("Clips")
+                            .font(.headline)
+                        Spacer()
+                        if let job = store.selectedJob, !job.clipOutputs.isEmpty {
+                            Button {
+                                NSWorkspace.shared.activateFileViewerSelecting(job.clipOutputs.map(\.url))
+                            } label: {
+                                Image(systemName: "arrow.right.circle")
+                            }
+                            .help("Show clips in Finder")
+                        }
+                    }
+
+                    if let job = store.selectedJob, !job.clipOutputs.isEmpty {
+                        List(job.clipOutputs, selection: $store.selectedOutputID) { output in
                             OutputRow(output: output)
                                 .tag(output.id)
-                                .contextMenu {
-                                    Button("Reveal in Finder") {
-                                        NSWorkspace.shared.activateFileViewerSelecting([output.url])
-                                    }
-                                }
                         }
                     } else {
                         ContentUnavailableView("No Clips Yet", systemImage: "film.stack", description: Text("Process the selected video to create clips and audio files."))
@@ -39,12 +49,62 @@ struct DetailView: View {
                     if let output = store.selectedOutput, output.kind == .video {
                         ClipPlayerView(url: output.url)
                             .aspectRatio(16 / 9, contentMode: .fit)
+                    } else if let job = store.selectedJob {
+                        ClipPlayerView(url: job.sourceURL)
+                            .aspectRatio(16 / 9, contentMode: .fit)
                     } else {
-                        ContentUnavailableView("Pick a Clip", systemImage: "play.rectangle", description: Text("Video clips appear here after processing."))
+                        ContentUnavailableView("Pick an Input", systemImage: "play.rectangle", description: Text("Choose a video file from the sidebar."))
                     }
                 }
                 .padding()
                 .frame(minWidth: 360)
+            }
+        }
+    }
+}
+
+private struct SourcePanel: View {
+    @Bindable var store: ProcessingStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Input")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    store.chooseInputFolder()
+                } label: {
+                    Image(systemName: "folder")
+                }
+                .help("Choose input folder")
+            }
+
+            if let job = store.selectedJob {
+                HStack(spacing: 10) {
+                    Image(systemName: "film")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 16)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(job.fileName)
+                            .lineLimit(1)
+                        Text(job.sourceURL.deletingLastPathComponent().path(percentEncoded: false))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Spacer()
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([job.sourceURL])
+                    } label: {
+                        Image(systemName: "arrow.right.circle")
+                    }
+                    .help("Show input in Finder")
+                }
+            } else {
+                Text("Choose an input folder, then select a video.")
+                    .foregroundStyle(.secondary)
             }
         }
     }

@@ -68,43 +68,48 @@ final class ClipProcessor {
         diagnostics.append(ProcessingEvent(level: .info, message: "Detected \(cutPoints.count) cut point\(cutPoints.count == 1 ? "" : "s") and will write \(ranges.count) clip\(ranges.count == 1 ? "" : "s")."))
         diagnostics += detection.diagnostics
         var outputs: [OutputArtifact] = []
+        let audioURL = audioFolder.appendingPathComponent("\(baseName)_audio.m4a")
+
+        onProgress(ProcessingProgress(stage: "Extracting full audio", fraction: 0.60))
+        try await run(
+            executable: ffmpeg,
+            arguments: [
+                "-hide_banner", "-y",
+                "-i", sourceURL.path(percentEncoded: false),
+                "-vn",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                audioURL.path(percentEncoded: false)
+            ]
+        )
+        outputs.append(OutputArtifact(url: audioURL, kind: .audio, clipIndex: 0))
 
         for (index, range) in ranges.enumerated() {
             let number = String(format: "%03d", index + 1)
             let clipURL = clipsFolder.appendingPathComponent("\(baseName)_clip_\(number).mp4")
-            let audioURL = audioFolder.appendingPathComponent("\(baseName)_clip_\(number)_audio.m4a")
             let baseProgress = Double(index) / Double(max(ranges.count, 1))
-            onProgress(ProcessingProgress(stage: "Writing clip \(index + 1) of \(ranges.count)", fraction: 0.60 + baseProgress * 0.38))
+            onProgress(ProcessingProgress(stage: "Writing clip \(index + 1) of \(ranges.count)", fraction: 0.68 + baseProgress * 0.30))
 
             try await run(
                 executable: ffmpeg,
                 arguments: [
                     "-hide_banner", "-y",
+                    "-i", sourceURL.path(percentEncoded: false),
                     "-ss", formatSeconds(range.start),
                     "-to", formatSeconds(range.end),
-                    "-i", sourceURL.path(percentEncoded: false),
-                    "-map", "0",
-                    "-c", "copy",
-                    "-avoid_negative_ts", "make_zero",
+                    "-map", "0:v:0",
+                    "-map", "0:a?",
+                    "-c:v", "libx264",
+                    "-preset", "veryfast",
+                    "-crf", "18",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-movflags", "+faststart",
                     clipURL.path(percentEncoded: false)
                 ]
             )
 
-            try await run(
-                executable: ffmpeg,
-                arguments: [
-                    "-hide_banner", "-y",
-                    "-ss", formatSeconds(range.start),
-                    "-to", formatSeconds(range.end),
-                    "-i", sourceURL.path(percentEncoded: false),
-                    "-vn",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    audioURL.path(percentEncoded: false)
-                ]
-            )
             outputs.append(OutputArtifact(url: clipURL, kind: .video, clipIndex: index + 1))
-            outputs.append(OutputArtifact(url: audioURL, kind: .audio, clipIndex: index + 1))
         }
 
         onProgress(ProcessingProgress(stage: "Finished", fraction: 1))
