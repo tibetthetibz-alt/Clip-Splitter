@@ -2,8 +2,8 @@
 
 A simple macOS app for splitting uploaded video slips at jump cuts. It writes:
 
-- `clips/`: video clips that keep their original audio
-- `audio/`: separate `.m4a` audio exports for each clip
+- `clips/`: video-only clips with their audio stripped
+- `audio/`: one full-length `.m4a` audio export for the source video
 
 ## Requirements
 
@@ -27,6 +27,6 @@ In Codex, use the Run action. Pick an input folder, pick an output folder, then 
 
 Slip Splitter uses FFmpeg's `scdet` filter as the primary detector. It reads scene-change scores and threshold timestamps, then adds adaptive cut candidates when a frame's scene score spikes above its local rolling neighborhood. This catches obvious jump cuts that a single fixed threshold can miss while still filtering tiny repeated hits by the minimum clip length.
 
-Clip export re-encodes the selected video ranges for frame-accurate cuts. This avoids the end-of-clip spillover that can happen with `-c copy`, which can only cut cleanly near keyframes. Each clip keeps its audio, and the `audio/` folder contains one full-length audio export for the source video.
+Clip export re-encodes the selected video ranges for frame-accurate cuts. This avoids the end-of-clip spillover that can happen with `-c copy`, which can only cut cleanly near keyframes. Generated clips are video-only, and the `audio/` folder contains one full-length audio export for the source video.
 
 Open Settings for detector tuning and diagnostics from the toolbar.

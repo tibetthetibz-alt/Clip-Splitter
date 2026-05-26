@@ -98,12 +98,10 @@ final class ClipProcessor {
                     "-ss", formatSeconds(range.start),
                     "-to", formatSeconds(range.end),
                     "-map", "0:v:0",
-                    "-map", "0:a?",
                     "-c:v", "libx264",
                     "-preset", "veryfast",
                     "-crf", "18",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
+                    "-an",
                     "-movflags", "+faststart",
                     clipURL.path(percentEncoded: false)
                 ]

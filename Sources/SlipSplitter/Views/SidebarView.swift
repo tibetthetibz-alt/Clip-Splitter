@@ -7,7 +7,7 @@ struct SidebarView: View {
         List {
             Section("Folders") {
                 FolderRow(
-                    title: "Input",
+                    title: "Choose Input Folder",
                     subtitle: store.inputFolder?.path(percentEncoded: false) ?? "Choose folder",
                     systemImage: "tray.and.arrow.down"
                 )
@@ -15,7 +15,7 @@ struct SidebarView: View {
                 .onTapGesture { store.chooseInputFolder() }
 
                 FolderRow(
-                    title: "Output",
+                    title: "Choose Output Folder",
                     subtitle: store.outputFolder?.path(percentEncoded: false) ?? "Choose folder",
                     systemImage: "folder.badge.gearshape"
                 )

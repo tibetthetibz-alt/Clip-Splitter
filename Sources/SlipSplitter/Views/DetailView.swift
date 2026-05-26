@@ -24,7 +24,7 @@ struct DetailView: View {
                             Button {
                                 NSWorkspace.shared.activateFileViewerSelecting(job.clipOutputs.map(\.url))
                             } label: {
-                                Image(systemName: "arrow.right.circle")
+                                Label("Show Clips in Finder", systemImage: "arrow.right.circle")
                             }
                             .help("Show clips in Finder")
                         }
@@ -75,7 +75,7 @@ private struct SourcePanel: View {
                 Button {
                     store.chooseInputFolder()
                 } label: {
-                    Image(systemName: "folder")
+                    Label("Choose Input Folder", systemImage: "folder")
                 }
                 .help("Choose input folder")
             }
@@ -98,7 +98,7 @@ private struct SourcePanel: View {
                     Button {
                         NSWorkspace.shared.activateFileViewerSelecting([job.sourceURL])
                     } label: {
-                        Image(systemName: "arrow.right.circle")
+                        Label("Show Input in Finder", systemImage: "arrow.right.circle")
                     }
                     .help("Show input in Finder")
                 }
