@@ -37,7 +37,7 @@ struct DetailView: View {
                         .font(.headline)
 
                     if let output = store.selectedOutput, output.kind == .video {
-                        VideoPlayer(player: AVPlayer(url: output.url))
+                        ClipPlayerView(url: output.url)
                             .aspectRatio(16 / 9, contentMode: .fit)
                     } else {
                         ContentUnavailableView("Pick a Clip", systemImage: "play.rectangle", description: Text("Video clips appear here after processing."))
@@ -128,6 +128,38 @@ private struct OutputRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+}
+
+private struct ClipPlayerView: NSViewRepresentable {
+    let url: URL
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let view = AVPlayerView()
+        view.controlsStyle = .floating
+        view.videoGravity = .resizeAspect
+        view.player = AVPlayer(url: url)
+        return view
+    }
+
+    func updateNSView(_ view: AVPlayerView, context: Context) {
+        if context.coordinator.currentURL != url {
+            view.player?.pause()
+            view.player = AVPlayer(url: url)
+            context.coordinator.currentURL = url
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(currentURL: url)
+    }
+
+    final class Coordinator {
+        var currentURL: URL
+
+        init(currentURL: URL) {
+            self.currentURL = currentURL
         }
     }
 }
