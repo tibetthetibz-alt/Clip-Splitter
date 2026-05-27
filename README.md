@@ -1,6 +1,6 @@
 # Clip Splitter
 
-**Split videos at jump cuts—no installs, no command line.**
+**Split videos at jump cuts.**
 
 Clip Splitter is a macOS app that scans a folder of videos, detects scene changes and jump cuts, and exports ready-to-use clips plus a full-length audio track for each file.
 
