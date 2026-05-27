@@ -97,8 +97,4 @@ chmod +x script/package_release.sh
 ./script/package_release.sh
 ```
 
----
 
-## License
-
-See repository license file. FFmpeg components in release builds follow their respective licenses (LGPL/GPL depending on the bundled build).
