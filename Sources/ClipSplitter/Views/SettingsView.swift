@@ -23,6 +23,10 @@ struct SettingsView: View {
             Divider()
 
             Form {
+                Section("About") {
+                    AboutView()
+                }
+
                 Section("Cut Detection") {
                     Slider(value: $store.settings.sceneThreshold, in: 4...20) {
                         Text("Scene threshold")

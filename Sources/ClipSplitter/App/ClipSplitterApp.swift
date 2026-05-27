@@ -12,7 +12,7 @@ struct ClipSplitterApp: App {
         }
         Settings {
             SettingsView(store: store)
-                .frame(width: 620, height: 460)
+                .frame(width: 620, height: 560)
         }
         .commands {
             CommandGroup(after: .newItem) {
