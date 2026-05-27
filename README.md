@@ -40,15 +40,6 @@ chmod +x script/package_release.sh
 
 Output: `dist/Clip Splitter.app` and `dist/Clip-Splitter-macOS-Universal.zip`.
 
-### Publish to GitHub Releases
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-GitHub Actions builds the universal app, bundles FFmpeg, and attaches the zip to the release.
-
 ## Cut Detection
 
 Clip Splitter uses FFmpeg's `scdet` filter as the primary detector. It reads scene-change scores and threshold timestamps, then adds adaptive cut candidates when a frame's scene score spikes above its local rolling neighborhood. This catches obvious jump cuts that a single fixed threshold can miss while still filtering tiny repeated hits by the minimum clip length.
