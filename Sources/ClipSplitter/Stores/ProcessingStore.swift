@@ -84,18 +84,20 @@ final class ProcessingStore {
         let sourceURL = jobs[index].sourceURL
         addEvent("Starting \(sourceURL.lastPathComponent).")
 
+        let jobID = selectedJob.id
         do {
             let result = try await processor.process(
                 sourceURL: sourceURL,
                 outputRoot: outputFolder,
                 settings: settings
-            ) { [weak self] update in
-                Task { @MainActor in
-                    self?.progress = update.fraction
-                    self?.progressMessage = update.stage
-                    if let jobIndex = self?.jobs.firstIndex(where: { $0.id == selectedJob.id }) {
-                        self?.jobs[jobIndex].progress = update.fraction
-                        self?.jobs[jobIndex].status = update.stage
+            ) { update in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    progress = update.fraction
+                    progressMessage = update.stage
+                    if let jobIndex = jobs.firstIndex(where: { $0.id == jobID }) {
+                        jobs[jobIndex].progress = update.fraction
+                        jobs[jobIndex].status = update.stage
                     }
                 }
             }
