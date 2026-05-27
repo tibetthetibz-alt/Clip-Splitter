@@ -26,7 +26,6 @@ Clip Splitter is a macOS app that scans a folder of videos, detects scene change
 4. Choose an **input folder** (your videos) and an **output folder**.
 5. Select a video in the sidebar and click **Run** (or press **⌘R**).
 
-No Homebrew, Xcode, or FFmpeg setup—the release app includes everything it needs.
 
 ---
 
